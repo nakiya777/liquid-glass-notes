@@ -1,36 +1,57 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Liquid Glass Notes
 
-## Getting Started
+Apple が iPadOS / macOS で採用する **Liquid Glass** の質感を、Web 標準だけで再現したメモアプリ。
 
-First, run the development server:
+![明るい材質](docs/preview-light.png)
+
+## 何をしているか
+
+ガラス面を6層の重ね合わせで作る。
+
+| 層 | 役割 |
+|---|---|
+| frost | 背景のぼかしと彩度上昇 |
+| rim | **縁での屈折** — SVG 変位マップで光路を曲げる |
+| tint | 材質の明暗を決める半透明の塗り |
+| sheen | 斜めに走る艶 |
+| edge | 1px の縁光 |
+| content | 中身 |
+
+ぼかしだけでは板ガラスにならない。縁で背景の像が圧縮・湾曲して初めてガラスに見える。その屈折を角丸長方形の符号付き距離場から変位マップを起こして作っている。
+
+## 対応状況
+
+| ブラウザ | ぼかし | 縁の屈折 |
+|---|---|---|
+| Chrome / Edge | ○ | ○ |
+| Safari | ○ | ×（自動で frost のみに退避） |
+| Firefox | ○ | × |
+
+Safari は `backdrop-filter` に SVG フィルタを渡すと、ぼかしごと無効になる。そのため Chromium と積極判定できた時だけ屈折を有効にしている。
+
+## 機能
+
+- フォルダとメモの作成・改名・削除・復元
+- リッチテキスト、チェックリスト、表、画像添付
+- 手書き（ペン／マーカー／鉛筆／消しゴム、色6種、太さ可変）
+- 検索、並べ替え、タグ、ピン留め
+- 取り消し／やり直し（⌘Z / ⇧⌘Z）
+- 端末内保存、Markdown 書き出し、印刷
+- 背景の明るさに応じた材質の自動切替
+
+## 使い方
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+http://localhost:3000
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 注意
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+macOS の「システム設定 › アクセシビリティ › ディスプレイ › 透明度を下げる」が有効だと、通常の Web ページのガラス表現は消える。本アプリは材質そのものが主題のため既定では従わない。右上のしずくボタンから「OS の透明度設定に従う」で切り替えられる。
 
-## Learn More
+## 文書
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+`docs/INDEX.md` を入口とする。設計判断は `docs/decisions/` の ADR に記録している。

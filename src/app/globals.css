@@ -1,26 +1,706 @@
 @import "tailwindcss";
 
+/* ==========================================================================
+   Liquid Glass Notes — デザイントークン
+   ========================================================================== */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Hiragino Sans",
+    "Hiragino Kaku Gothic ProN", "Yu Gothic", "Noto Sans JP", system-ui, sans-serif;
+  --font-hand: "Bradley Hand", "Segoe Print", "Hiragino Maru Gothic ProN", var(--font-ui);
+
+  --pane-radius: 26px;
+  --row-radius: 11px;
+
+  /* 明るい材質（既定）。白い壁・木床のような高輝度背景向け */
+  --g-blur: 14px;
+  --g-sat: 172%;
+  --g-bright: 1.0;
+  --g-tint: rgba(255, 255, 255, 0.13);
+  --g-sheen: 0.20;
+  --g-edge-hi: rgba(255, 255, 255, 0.98);
+  --g-edge-mid: rgba(255, 255, 255, 0.30);
+  --g-edge-lo: rgba(255, 255, 255, 0.10);
+  --g-edge-hi2: rgba(255, 255, 255, 0.60);
+  --g-shadow: 0 32px 64px -20px rgba(40, 30, 12, 0.32), 0 4px 14px rgba(40, 30, 12, 0.10);
+
+  --ink: #1c1c1e;
+  --ink-2: rgba(28, 28, 30, 0.56);
+  --ink-3: rgba(28, 28, 30, 0.34);
+  --accent: #d99a25;
+  --accent-soft: rgba(217, 154, 37, 0.16);
+  --sel: rgba(255, 255, 255, 0.62);
+  --sel-strong: rgba(255, 255, 255, 0.82);
+  --hair: rgba(28, 28, 30, 0.10);
+  --paper: rgba(255, 255, 255, 0.94);
+  --paper-ink: #1c1c1e;
+  --thumb-line: rgba(28, 28, 30, 0.18);
+
+  --spring-fast: 220ms cubic-bezier(0.32, 0.72, 0, 1);
+  --spring-slow: 420ms cubic-bezier(0.32, 0.72, 0, 1);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+[data-material="dark"] {
+  --g-blur: 22px;
+  --g-sat: 160%;
+  --g-bright: 0.96;
+  --g-tint: rgba(24, 24, 28, 0.30);
+  --g-sheen: 0.10;
+  --g-edge-hi: rgba(255, 255, 255, 0.58);
+  --g-edge-mid: rgba(255, 255, 255, 0.14);
+  --g-edge-lo: rgba(255, 255, 255, 0.04);
+  --g-edge-hi2: rgba(255, 255, 255, 0.22);
+  --g-shadow: 0 34px 70px -20px rgba(0, 0, 0, 0.62), 0 4px 14px rgba(0, 0, 0, 0.32);
+
+  --ink: rgba(255, 255, 255, 0.96);
+  --ink-2: rgba(255, 255, 255, 0.58);
+  --ink-3: rgba(255, 255, 255, 0.34);
+  --accent: #f2b845;
+  --accent-soft: rgba(242, 184, 69, 0.18);
+  --sel: rgba(255, 255, 255, 0.16);
+  --sel-strong: rgba(255, 255, 255, 0.24);
+  --hair: rgba(255, 255, 255, 0.10);
+  --paper: rgba(30, 30, 34, 0.92);
+  --paper-ink: rgba(255, 255, 255, 0.94);
+  --thumb-line: rgba(255, 255, 255, 0.26);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+/* ==========================================================================
+   基礎
+   ========================================================================== */
+
+* { box-sizing: border-box; }
+
+html, body { height: 100%; }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  font-family: var(--font-ui);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+.wallpaper {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background-image: var(--wallpaper);
+  background-size: cover;
+  background-position: center;
+  transform: scale(1.02);   /* 縁の屈折が画像外を掴まないよう僅かに拡大 */
+}
+
+/* 暗い材質のときだけ壁紙を沈ませて文字を立たせる */
+.wallpaper::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0);
+  transition: background var(--spring-slow);
+}
+[data-material="dark"] .wallpaper::after { background: rgba(10, 8, 4, 0.34); }
+
+.lens-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+/* ==========================================================================
+   ガラス面
+   ========================================================================== */
+
+.glass {
+  position: relative;
+  border-radius: var(--g-radius);
+  box-shadow: var(--g-shadow);
+  color: var(--ink);
+}
+
+.glass__layer {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.glass__frost {
+  backdrop-filter: blur(var(--g-blur)) saturate(var(--g-sat)) brightness(var(--g-bright));
+}
+
+/* 縁の屈折層。backdrop-filter と mask は JS から付与する（対応環境のみ） */
+.glass__rim,
+.glass__frost { mask-repeat: no-repeat; }
+
+.glass__tint { background: var(--g-tint); }
+
+.glass__sheen {
+  background: linear-gradient(
+    152deg,
+    rgba(255, 255, 255, var(--g-sheen)) 0%,
+    rgba(255, 255, 255, calc(var(--g-sheen) * 0.28)) 26%,
+    rgba(255, 255, 255, 0) 46%
+  );
+}
+
+/* 1px の縁光。上辺で光を拾い、下辺へ回り込む */
+.glass__edge {
+  padding: 1px;
+  background: linear-gradient(
+    158deg,
+    var(--g-edge-hi) 0%,
+    var(--g-edge-mid) 22%,
+    var(--g-edge-lo) 52%,
+    var(--g-edge-mid) 78%,
+    var(--g-edge-hi2) 100%
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+}
+
+.glass__content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+
+/* 変種 ------------------------------------------------------------------ */
+
+.glass--panel { --g-blur: 14px; }
+
+.glass--chrome {
+  --g-blur: 16px;
+  --g-tint: rgba(255, 255, 255, 0.20);
+  box-shadow: 0 18px 40px -14px rgba(40, 30, 12, 0.34), 0 2px 8px rgba(40, 30, 12, 0.12);
+}
+[data-material="dark"] .glass--chrome {
+  box-shadow: 0 18px 40px -14px rgba(0, 0, 0, 0.6), 0 2px 8px rgba(0, 0, 0, 0.34);
+}
+
+.glass--control {
+  --g-blur: 12px;
+  --g-tint: rgba(255, 255, 255, 0.22);
+  --g-sheen: 0.30;
+  box-shadow: 0 6px 16px -6px rgba(40, 30, 12, 0.30), 0 1px 3px rgba(40, 30, 12, 0.12);
+}
+[data-material="dark"] .glass--control {
+  --g-sheen: 0.16;
+  box-shadow: 0 6px 16px -6px rgba(0, 0, 0, 0.55), 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.glass--card {
+  --g-tint: var(--paper);
+  --g-blur: 8px;
+  --g-sheen: 0.10;
+  color: var(--paper-ink);
+}
+
+.glass--bare { box-shadow: none; }
+.glass--bare .glass__tint,
+.glass--bare .glass__edge,
+.glass--bare .glass__sheen { display: none; }
+
+/* ==========================================================================
+   活字 — 大きい字は詰め、小さい字は開く
+   ========================================================================== */
+
+.t-display { font-size: 30px; font-weight: 700; letter-spacing: -0.022em; line-height: 1.14; }
+.t-title   { font-size: 21px; font-weight: 700; letter-spacing: -0.014em; line-height: 1.22; }
+.t-head    { font-size: 16px; font-weight: 600; letter-spacing: -0.008em; line-height: 1.3; }
+.t-body    { font-size: 14px; font-weight: 400; letter-spacing: 0;        line-height: 1.62; }
+.t-meta    { font-size: 12px; font-weight: 400; letter-spacing: 0.006em;  line-height: 1.4; color: var(--ink-2); }
+.t-tiny    { font-size: 11px; font-weight: 500; letter-spacing: 0.012em;  line-height: 1.3; color: var(--ink-3); }
+
+/* ==========================================================================
+   共通部品
+   ========================================================================== */
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: var(--row-radius);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: default;
+  transition: background var(--spring-fast), transform 110ms ease-out;
+}
+.row:hover { background: color-mix(in srgb, var(--sel) 45%, transparent); }
+.row:active { transform: scale(0.985); }
+.row[data-selected="true"] {
+  background: var(--sel);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 1px 2px rgba(40, 30, 12, 0.08);
+}
+[data-material="dark"] .row[data-selected="true"] {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+
+.icon-btn {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  border: 0;
+  background: transparent;
+  color: var(--ink-2);
+  cursor: default;
+  transition: background var(--spring-fast), color var(--spring-fast), transform 110ms ease-out;
+}
+.icon-btn:hover { background: color-mix(in srgb, var(--sel) 55%, transparent); color: var(--ink); }
+.icon-btn:active { transform: scale(0.92); }
+.icon-btn[data-active="true"] { color: var(--accent); background: var(--accent-soft); }
+.icon-btn:disabled { opacity: 0.32; }
+.icon-btn:disabled:hover { background: transparent; color: var(--ink-2); }
+
+.pill-btn {
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 8px;
+  cursor: default;
+  transition: background var(--spring-fast), transform 110ms ease-out;
+}
+.pill-btn:hover { background: var(--accent-soft); }
+.pill-btn:active { transform: scale(0.96); }
+
+:where(button, [role="button"], a):focus-visible,
+.row:focus-visible,
+[contenteditable]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.hair { height: 1px; background: var(--hair); border: 0; margin: 0; }
+
+/* 薄い面の上で細い字が負けないよう、僅かに太く・開く（vibrancy 代替） */
+.on-glass { font-weight: 450; letter-spacing: 0.004em; }
+
+/* ==========================================================================
+   スクロール
+   ========================================================================== */
+
+.scroll { overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; scrollbar-color: var(--ink-3) transparent; }
+.scroll::-webkit-scrollbar { width: 8px; }
+.scroll::-webkit-scrollbar-thumb { background: var(--ink-3); border-radius: 99px; border: 2px solid transparent; background-clip: content-box; }
+.scroll::-webkit-scrollbar-track { background: transparent; }
+
+/* 上端の境界線ではなく、内容を薄く溶かす（scroll edge effect） */
+.fade-top { mask-image: linear-gradient(180deg, transparent 0, #000 14px); -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 14px); }
+
+/* ==========================================================================
+   本文エディタ
+   ========================================================================== */
+
+.doc { color: var(--paper-ink); }
+.doc:focus { outline: none; }
+.doc p { margin: 0 0 0.7em; }
+.doc h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.018em; line-height: 1.2; margin: 1em 0 0.4em; }
+.doc h2 { font-size: 19px; font-weight: 700; letter-spacing: -0.012em; margin: 1em 0 0.35em; }
+.doc h3 { font-size: 16px; font-weight: 600; margin: 0.9em 0 0.3em; }
+.doc ul, .doc ol { margin: 0 0 0.8em; padding-left: 1.35em; }
+.doc li { margin: 0.15em 0; }
+.doc blockquote { margin: 0 0 0.8em; padding-left: 0.9em; border-left: 3px solid var(--accent); color: var(--ink-2); }
+.doc code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.92em; background: rgba(127, 127, 127, 0.14); padding: 0.12em 0.34em; border-radius: 5px; }
+.doc table { border-collapse: collapse; margin: 0 0 0.9em; width: 100%; }
+.doc td, .doc th { border: 1px solid var(--hair); padding: 6px 9px; text-align: left; }
+.doc img { max-width: 100%; border-radius: 10px; margin: 0.3em 0; }
+.doc a { color: var(--accent); }
+
+.doc ul.checklist { list-style: none; padding-left: 0.15em; }
+.doc ul.checklist li { position: relative; padding-left: 1.9em; cursor: default; }
+.doc ul.checklist li::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 0.28em;
+  width: 1.05em; height: 1.05em;
+  border-radius: 50%;
+  border: 1.6px solid var(--ink-3);
+  transition: background var(--spring-fast), border-color var(--spring-fast);
+}
+.doc ul.checklist li[data-checked="true"]::before {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.doc ul.checklist li[data-checked="true"]::after {
+  content: "";
+  position: absolute;
+  left: 0.3em; top: 0.46em;
+  width: 0.44em; height: 0.24em;
+  border-left: 1.7px solid #fff;
+  border-bottom: 1.7px solid #fff;
+  transform: rotate(-45deg);
+}
+.doc ul.checklist li[data-checked="true"] { color: var(--ink-2); }
+
+.doc:empty::before,
+.doc[data-empty="true"]::before {
+  content: attr(data-placeholder);
+  color: var(--ink-3);
+  pointer-events: none;
+}
+
+/* ==========================================================================
+   配慮設定
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.12s !important;
+    scroll-behavior: auto !important;
+  }
+  .row:active, .icon-btn:active, .pill-btn:active { transform: none; }
+}
+
+/* 透明度の抑制。OS の prefers-reduced-transparency をそのまま効かせず、
+   AppShell が data-flat を立てた時だけ適用する（設定から上書きできるようにするため）。
+   既定では本アプリは材質が主題なのでガラスを描く。 */
+[data-flat="1"] .glass__frost,
+[data-flat="1"] .glass__rim {
+  backdrop-filter: none !important;
+}
+[data-flat="1"] .glass__rim { display: none; }
+[data-flat="1"] { --g-tint: rgba(250, 250, 250, 0.97); --g-sheen: 0; }
+[data-flat="1"][data-material="dark"] { --g-tint: rgba(28, 28, 32, 0.97); }
+[data-flat="1"] .pane--sidebar { background: rgba(0, 0, 0, 0.035); }
+[data-flat="1"] .pane--list { background: rgba(0, 0, 0, 0.015); }
+
+@media (prefers-contrast: more) {
+  :root { --g-tint: rgba(255, 255, 255, 0.93); --ink-2: rgba(28, 28, 30, 0.78); --ink-3: rgba(28, 28, 30, 0.6); --hair: rgba(28, 28, 30, 0.3); }
+  [data-material="dark"] { --g-tint: rgba(20, 20, 24, 0.95); --ink-2: rgba(255, 255, 255, 0.82); --ink-3: rgba(255, 255, 255, 0.6); }
+  .glass__edge { --g-edge-lo: var(--g-edge-mid); }
+}
+
+/* ==========================================================================
+   メニュー
+   ========================================================================== */
+
+.menu {
+  opacity: 0;
+  transform: scale(0.94) translateY(-4px);
+  pointer-events: none;
+  transition: opacity 140ms ease-out, transform var(--spring-fast);
+}
+.menu[data-open="true"] {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+  pointer-events: auto;
+}
+.menu__item { padding: 6px 9px; }
+.menu__item[data-danger] { color: #d8453a; }
+[data-material="dark"] .menu__item[data-danger] { color: #ff6b60; }
+.menu__item:disabled { opacity: 0.35; }
+.menu__item:disabled:hover { background: transparent; }
+
+/* ==========================================================================
+   手書き
+   ========================================================================== */
+
+.ink-layer { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+
+.ink-canvas { position: absolute; inset: 0; z-index: 3; touch-action: none; }
+.ink-canvas__svg { width: 100%; height: 100%; display: block; }
+.ink-canvas[data-tool="eraser"] { cursor: cell; }
+.ink-canvas[data-tool="pen"],
+.ink-canvas[data-tool="pencil"],
+.ink-canvas[data-tool="marker"] { cursor: crosshair; }
+
+.ink-thumb { width: 100%; height: 100%; display: block; }
+
+/* ==========================================================================
+   全体レイアウト — 一枚のガラス板を三分割し、白い用紙がその上に浮く
+   ========================================================================== */
+
+.app {
+  --app-pad-x: clamp(18px, 3vw, 52px);
+  --app-pad-y: clamp(16px, 3.4vh, 40px);
+  position: fixed;
+  inset: 0;
+  padding: var(--app-pad-y) var(--app-pad-x);
+  display: flex;
+}
+
+.slab { flex: 1; min-height: 0; min-width: 0; }
+.slab__in { overflow: hidden; border-radius: inherit; }
+
+.slab__grid {
+  display: grid;
+  grid-template-columns: 262px 1px minmax(240px, 320px) 1px minmax(0, 1fr);
+  height: 100%;
+  min-height: 0;
+}
+.slab__rule { background: var(--hair); }
+
+.pane { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.pane--sidebar { background: rgba(255, 255, 255, 0.10); }
+.pane--list { background: rgba(255, 255, 255, 0.035); }
+[data-material="dark"] .pane--sidebar { background: rgba(255, 255, 255, 0.06); }
+[data-material="dark"] .pane--list { background: rgba(255, 255, 255, 0.022); }
+
+.pane__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 15px 12px 8px 14px;
+  flex-shrink: 0;
+}
+
+/* --- サイドバー ---------------------------------------------------------- */
+
+.sidebar__body { flex: 1; padding: 0 8px 6px; }
+
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 8px 3px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: default;
+}
+.chev { color: var(--ink-3); display: grid; place-items: center; transition: transform var(--spring-fast); }
+.chev[data-open="false"] { transform: rotate(-90deg); }
+
+.disclosure { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--spring-slow); }
+.disclosure[data-open="true"] { grid-template-rows: 1fr; }
+.disclosure__inner { overflow: hidden; min-height: 0; }
+
+.sidebar__foot { padding: 8px 12px 12px; flex-shrink: 0; }
+
+.folder-input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 13.5px;
+  outline: none;
+}
+.folder-input--boxed {
+  width: 100%;
+  padding: 6px 9px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--sel) 70%, transparent);
+  box-shadow: inset 0 0 0 1px var(--hair);
+}
+
+.mini-btn {
+  display: grid;
+  place-items: center;
+  width: 22px; height: 22px;
+  border-radius: 7px;
+  color: var(--ink-2);
+  transition: background var(--spring-fast), color var(--spring-fast);
+}
+.mini-btn:hover { background: var(--sel-strong); color: var(--ink); }
+.mini-btn--danger:hover { color: #d8453a; }
+
+/* --- メモ一覧 ------------------------------------------------------------ */
+
+.list__search {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 12px 8px;
+  padding: 6px 9px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--sel) 62%, transparent);
+  box-shadow: inset 0 0 0 1px var(--hair);
+  color: var(--ink-3);
+  flex-shrink: 0;
+}
+.list__search input {
+  flex: 1; min-width: 0;
+  border: 0; background: transparent; outline: none;
+  font: inherit; font-size: 13px;
+  color: var(--ink);
+}
+.list__search input::placeholder { color: var(--ink-3); }
+
+.list__body { flex: 1; padding: 0 8px 8px; }
+
+.note-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: default;
+  transition: background var(--spring-fast), transform 110ms ease-out;
+}
+.note-row:hover { background: color-mix(in srgb, var(--sel) 42%, transparent); }
+.note-row:active { transform: scale(0.988); }
+.note-row[data-selected="true"] {
+  background: var(--sel);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 1px 3px rgba(40, 30, 12, 0.09);
+}
+[data-material="dark"] .note-row[data-selected="true"] { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12); }
+
+.note-row__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.note-row__title {
+  font-size: 13.5px; font-weight: 600; letter-spacing: -0.004em;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.note-row__meta { display: flex; gap: 7px; font-size: 11.5px; color: var(--ink-2); min-width: 0; }
+.note-row__meta > span:first-child { flex-shrink: 0; white-space: nowrap; }
+.note-row__preview { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-3); }
+
+.thumb {
+  width: 44px; height: 44px; flex-shrink: 0;
+  border-radius: 8px;
+  background: var(--paper);
+  box-shadow: 0 1px 3px rgba(40, 30, 12, 0.16), inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+}
+.thumb__lines { width: 26px; display: flex; flex-direction: column; gap: 4px; }
+.thumb__lines i { display: block; height: 2px; border-radius: 2px; background: var(--thumb-line); }
+.thumb__lines i:last-child { width: 60%; }
+
+.list__foot {
+  flex-shrink: 0;
+  padding: 7px 12px 11px;
+  text-align: center;
+  border-top: 1px solid var(--hair);
+}
+
+/* --- エディタ ------------------------------------------------------------ */
+
+.pane--editor { padding-top: 0; }
+.editor__scroll { flex: 1; padding: 58px clamp(16px, 3vw, 44px) 92px; }
+.editor__empty { flex: 1; display: grid; place-items: center; }
+
+.trash-bar {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  margin: 12px clamp(16px, 3vw, 44px) 0;
+  padding: 7px 8px 7px 14px;
+  border-radius: 11px;
+  background: color-mix(in srgb, #d8453a 12%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #d8453a 26%, transparent);
+  flex-shrink: 0;
+}
+
+.paper { max-width: 740px; margin: 0 auto; }
+.paper__in { padding: 30px clamp(20px, 3.4vw, 42px) 44px; }
+
+.paper__title {
+  width: 100%;
+  border: 0; background: transparent; outline: none;
+  font: inherit;
+  font-size: 28px; font-weight: 700; letter-spacing: -0.021em; line-height: 1.18;
+  color: var(--paper-ink);
+  margin-bottom: 14px;
+}
+.paper__title::placeholder { color: var(--ink-3); }
+
+.paper__canvas { position: relative; min-height: 460px; }
+.paper__canvas .doc { min-height: 460px; position: relative; z-index: 1; }
+
+/* --- 上部の操作 ---------------------------------------------------------- */
+
+.topchrome {
+  position: absolute;
+  top: calc(var(--app-pad-y) + 13px);
+  right: calc(var(--app-pad-x) + 15px);
+  z-index: 40;
+}
+.chrome-pod__in { flex-direction: row; align-items: center; gap: 2px; padding: 4px 6px; height: 100%; }
+
+/* --- 下部のツールバー ---------------------------------------------------- */
+
+.toolbar-wrap {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--app-pad-y) + 16px);
+  transform: translateX(-50%);
+  z-index: 40;
+}
+.toolbar__in { flex-direction: row; align-items: center; gap: 4px; padding: 6px 11px; }
+.toolbar__group { display: flex; align-items: center; gap: 2px; }
+.toolbar__sep { width: 1px; height: 20px; background: var(--hair); margin: 0 6px; flex-shrink: 0; }
+
+.swatch {
+  width: 19px; height: 19px;
+  border-radius: 50%;
+  border: 0;
+  cursor: default;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.16), 0 1px 2px rgba(0, 0, 0, 0.18);
+  transition: transform var(--spring-fast), box-shadow var(--spring-fast);
+}
+.swatch:hover { transform: scale(1.12); }
+.swatch[data-active] {
+  transform: scale(1.16);
+  box-shadow: 0 0 0 2px var(--paper), 0 0 0 3.6px var(--accent);
+}
+
+.toolbar__size { display: flex; align-items: center; width: 84px; }
+.toolbar__size input {
+  width: 100%;
+  accent-color: var(--accent);
+  height: 3px;
+}
+
+/* ==========================================================================
+   狭い画面
+   ========================================================================== */
+
+@media (max-width: 1080px) {
+  .slab__grid { grid-template-columns: 214px 1px minmax(210px, 264px) 1px minmax(0, 1fr); }
+}
+
+@media (max-width: 860px) {
+  .slab__grid { grid-template-columns: 1px 0 minmax(200px, 250px) 1px minmax(0, 1fr); }
+  .pane--sidebar { display: none; }
+  .slab__grid > .slab__rule:first-of-type { display: none; }
+}
+
+@media (max-width: 620px) {
+  .slab__grid { grid-template-columns: minmax(0, 1fr); }
+  .pane--list { display: none; }
+  .slab__rule { display: none; }
+  .editor__scroll { padding: 54px 12px 92px; }
+  .toolbar__in { padding: 5px 8px; }
+}
+
+/* ==========================================================================
+   印刷 — 用紙だけを出す
+   ========================================================================== */
+
+@media print {
+  .wallpaper, .topchrome, .toolbar-wrap, .pane--sidebar, .pane--list, .slab__rule { display: none !important; }
+  body { overflow: visible; }
+  .app { position: static; padding: 0; }
+  .slab { box-shadow: none; }
+  .slab .glass__layer { display: none; }
+  .paper { max-width: none; }
+  .paper .glass__layer { display: none; }
+  .editor__scroll { padding: 0; overflow: visible; }
+  .doc, .paper__title { color: #000; }
 }
