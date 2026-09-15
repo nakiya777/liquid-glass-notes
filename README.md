@@ -2,6 +2,10 @@
 
 Apple が iPadOS / macOS で採用する **Liquid Glass** の質感を、Web 標準だけで再現したメモアプリ。
 
+**▶ https://liquid-glass-notes.vercel.app**
+
+縁の屈折は Chrome / Edge でご覧ください。Safari と Firefox はぼかしのみに退避します。
+
 ![明るい材質](docs/preview-light.png)
 
 ## 何をしているか
@@ -51,6 +55,18 @@ http://localhost:3000
 ## 注意
 
 macOS の「システム設定 › アクセシビリティ › ディスプレイ › 透明度を下げる」が有効だと、通常の Web ページのガラス表現は消える。本アプリは材質そのものが主題のため既定では従わない。右上のしずくボタンから「OS の透明度設定に従う」で切り替えられる。
+
+## デプロイ
+
+Vercel CLI から直接デプロイする。
+
+```bash
+npx vercel deploy --prod
+```
+
+Git 連携（Push ごとの自動デプロイ）は未設定。有効にするには GitHub の
+`Settings › Applications › Vercel` で本リポジトリへのアクセスを許可し、
+`npx vercel git connect` を実行する。
 
 ## 文書
 
